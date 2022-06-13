@@ -4,11 +4,12 @@
   "description": "Picture sharing app",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "prepare": "husky install",
+    "lint": "eslint src/"
   },
   "author": "Ahmad Usman",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "body-parser": "^1.20.0",
     "dotenv": "^16.0.1",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.25.2"
+    "eslint-plugin-import": "^2.25.2",
+    "husky": "^8.0.0"
   }
 }

@@ -4,9 +4,9 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const path = require('path');
 
-const authRoutes = require('./routes/auth');
-const profileRoute = require('./routes/profile');
-const feedRoute = require('./routes/feed');
+const authRoutes = require('./src/routes/auth');
+const profileRoute = require('./src/routes/profile');
+const feedRoute = require('./src/routes/feed');
 
 const app = express();
 
