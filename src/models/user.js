@@ -8,7 +8,7 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
-    fullname: {
+    fullName: {
       type: String,
       required: true,
     },
@@ -21,6 +21,11 @@ const userSchema = new Schema(
       required: true,
     },
     about: String,
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    refreshToken: String,
     followers: [
       {
         type: mongoose.Types.ObjectId,

@@ -11,6 +11,8 @@
         "ecmaVersion": "latest"
     },
     "rules": {
-        "no-unused-vars": [2, {"args": "after-used", "argsIgnorePattern": "^_"}]
+        "no-unused-vars": [2, {"args": "after-used", "argsIgnorePattern": "^_"}],
+        "no-underscore-dangle": [0],
+        "no-useless-catch": [0]
     }
 }
