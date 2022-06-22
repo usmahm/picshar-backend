@@ -1,0 +1,53 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+  *,
+  *::after,
+  *::before {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .container {
+    background-color: white;
+  }
+  .header {
+    background-color: blue;
+    padding: 30px 0;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  .headerText {
+    color: white;
+    font-weight: 700;
+    font-size: 20px;
+  }
+  main, footer {
+    padding: 0 20px;
+    margin: 0 auto;
+    max-width: 500px;
+  }
+  main p, main h1 {
+    text-align: left;
+  }
+  footer {
+    text-align: center;
+    margin-top: 15px;
+  }
+</style>
+
+<div class="container">
+  <header class="header">
+    <p class="headerText">Pichar</p>
+  </header>
+  <main>
+    <h1>Hey <%= name %>,</h1>
+    <br>
+    <p>Here's your verification code <b><%= verificationCode %></b>.</p>
+    <p>This expires 5 minutes from time of receival.</p>
+    <br>
+    <p>Thanks</p>
+  </main>
+  <footer>
+    <a href="http://localhost:3001">pichar.com</a>
+  </footer>
+</div>

@@ -2,7 +2,11 @@ const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const ejs = require('ejs');
+const path = require('path');
 const User = require('../models/user');
+const { getRandomCode, sendMail } = require('../utils/index');
+const { throwError } = require('../utils/error');
 
 const tokenMaxAge = 600000;
 const generateNewTokens = (payload) => {
@@ -12,7 +16,7 @@ const generateNewTokens = (payload) => {
   return [token, refreshToken];
 };
 
-exports.signup = async (req, res, next) => {
+exports.putSignup = async (req, res, next) => {
   try {
     const {
       email, password, username, fullName,
@@ -20,21 +24,30 @@ exports.signup = async (req, res, next) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      const error = new Error('Validation failed');
-      error.statusCode = 422;
-      error.data = errors.array();
-      throw error;
+      throwError('Validation failed', 422, errors.array());
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const verificationCode = { code: getRandomCode(5) };
+    const verificationToken = await jwt.sign(verificationCode, process.env.JWT_SECRET, { expiresIn: '300s' });
+
     const user = new User({
       email,
       username,
       fullName,
       password: hashedPassword,
+      verificationToken,
     });
 
+    const verificationMail = await ejs.renderFile(path.join(global.__basedir, 'public', 'mails', 'verify-mail.ejs'), { name: user.fullName.split(' ')[0], verificationCode: verificationCode.code });
+
     const createdUser = await user.save();
+    await sendMail(
+      email,
+      'New User SignUp',
+      'Welcome to Picshar',
+      verificationMail,
+    );
 
     res.status(201).json({ message: 'User Created', userId: createdUser._id });
   } catch (error) {
@@ -42,24 +55,73 @@ exports.signup = async (req, res, next) => {
   }
 };
 
-exports.login = async (req, res, next) => {
-  // console.log(req.body.email)
+exports.getSignupVerficationCode = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      throwError("A user with this email couldn't be found", 401);
+    }
+
+    const verificationCode = { code: getRandomCode(5) };
+    const verificationToken = await jwt.sign(verificationCode, process.env.JWT_SECRET, { expiresIn: '300s' });
+    user.verificationToken = verificationToken;
+
+    const verificationMail = await ejs.renderFile(path.join(global.__basedir, 'public', 'mails', 'verify-mail.ejs'), { name: user.fullName.split(' ')[0], verificationCode: verificationCode.code });
+
+    await user.save();
+    await sendMail(
+      email,
+      'New User SignUp',
+      'Welcome to Picshar',
+      verificationMail,
+    );
+
+    res.status(200).json({ message: 'Verification code sent successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.postSignupVerificationCode = async (req, res, next) => {
+  try {
+    const { code, email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      throwError("A user with this email couldn't be found", 401);
+    }
+
+    const decodedToken = jwt.verify(user.verificationToken, process.env.JWT_SECRET);
+
+    if (code !== decodedToken.code) {
+      throwError('Invalid verification code', 422);
+    }
+
+    user.verificationToken = undefined;
+    user.emailVerified = true;
+    await user.save();
+
+    res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.postLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }, 'email fullName password username emailVerified');
-    // console.log(user);
+
     if (!user) {
-      const error = new Error("A user with this email couldn't be found");
-      error.statusCode = 401;
-      throw error;
+      throwError("A user with this email couldn't be found", 401);
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      const error = new Error('Invalid password');
-      error.statusCode = 401;
-      throw error;
+      throwError('Invalid password', 401);
     }
 
     const payload = {
@@ -85,36 +147,26 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.refreshToken = async (req, res, next) => {
+exports.getRefreshToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
     const user = await User.findOne({ refreshToken });
 
     if (!user) {
-      const error = new Error('Not authorized');
-      error.statusCode = 401;
-      throw error;
+      throwError('Not authorized', 401);
     }
 
     const decodedToken = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    // console.log('\nDECODED\n', decodedToken);
+
     if (!decodedToken) {
-      const error = new Error('Not authorized');
-      error.statusCode = 401;
-      throw error;
+      throwError('Not authorized', 401);
     }
 
     const payload = {
       email: decodedToken.email,
       userId: decodedToken.userId,
     };
-    // const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '10s' });
-    // const refr = jwt.sign(payload, process.env.JWT_REFRESH_SECRET);
     const [token, newRefreshToken] = generateNewTokens(payload);
-
-    console.log('\n----------------\n');
-    console.log(newRefreshToken, '\n', refreshToken);
-    console.log('\n----------------\n');
 
     user.refreshToken = newRefreshToken;
     await user.save();
@@ -128,21 +180,43 @@ exports.refreshToken = async (req, res, next) => {
   }
 };
 
-exports.logout = async (req, res, next) => {
+exports.postLogout = async (req, res, next) => {
   try {
     const { refreshToken, userId } = req.body;
     const user = await User.findOne({ refreshToken, _id: mongoose.Types.ObjectId(userId) });
 
     if (!user) {
-      const error = new Error('User not logged in');
-      error.statusCode = 401;
-      throw error;
+      throwError('User not logged in', 401);
     }
 
     user.refreshToken = undefined;
     await user.save();
 
     res.status(200).json({ message: 'User logged out' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.postNewPassword = async (req, res, next) => {
+  try {
+    const { email, newPassword, oldPassword } = req.body;
+
+    const user = await User.findOne({ email });
+    const match = await bcrypt.compare(oldPassword, user.password);
+
+    const newMatchOld = await bcrypt.compare(newPassword, user.password);
+
+    if (!match || newMatchOld) {
+      throwError(!match ? 'Wrong old password.' : 'New password cannot be same as old password.', 403);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
     next(error);
   }

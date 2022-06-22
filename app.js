@@ -1,3 +1,4 @@
+global.__basedir = __dirname;
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -16,7 +17,7 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use(cookieParser());
 
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3001');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -41,7 +42,7 @@ app.use((error, req, res, _) => {
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
-    const server = app.listen(8080);
+    const server = app.listen(8090);
     server.setTimeout(60000);
   })
   .then(() => {
